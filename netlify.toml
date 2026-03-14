@@ -2,8 +2,33 @@
   publish = "."
   command = ""
 
+# Static PWA files must NOT be redirected
+[[redirects]]
+  from = "/manifest.json"
+  to = "/manifest.json"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/sw.js"
+  to = "/sw.js"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/icon-192.png"
+  to = "/icon-192.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/icon-512.png"
+  to = "/icon-512.png"
+  status = 200
+  force = true
+
+# SPA fallback - only for HTML routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = false

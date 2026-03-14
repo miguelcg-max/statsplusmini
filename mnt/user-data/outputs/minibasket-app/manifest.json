@@ -1,7 +1,7 @@
 {
-  "name": "Mini5 Stats",
+  "name": "Mini5 Quintetos",
   "short_name": "Mini5",
-  "description": "Estadísticas de partidos minibasket",
+  "description": "Quintetos minibasket FEGABA",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
