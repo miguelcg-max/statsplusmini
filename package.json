@@ -1,1 +1,12 @@
-
+{
+  "name": "statsplusmini",
+  "version": "1.0.0",
+  "description": "App para Cloud Run",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
