@@ -1,7 +1,7 @@
 {
-  "name": "statsplusmini",
-  "version": "1.0.0",
-  "description": "Mini5 Stats - App de estadísticas de minibasket",
+  "name": "statsplus-mini",
+  "version": "2.4.1",
+  "description": "Stats+ Mini - App profesional de estadísticas de baloncesto",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"

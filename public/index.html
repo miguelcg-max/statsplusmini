@@ -1,0 +1,1885 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+  <title>Stats+ Mini</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#FF6B1A">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Stats+ Mini">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  
+  <style>
+    :root {
+      --orange: #FF6B1A;
+      --orange-dim: #c94e00;
+      --orange-glow: rgba(255,107,26,0.3);
+      --gold: #FFB800;
+      --bg-dark: #0A0E1A;
+      --bg-card: #12172A;
+      --bg-card2: #1A2035;
+      --bg-card3: #242B42;
+      --border: #2A3350;
+      --white: #F0F4FF;
+      --muted: #7A8599;
+      --danger: #FF3B5C;
+      --success: #2ECC71;
+      --warning: #FF9A3C;
+      --info: #5BC8FF;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg-dark);
+      color: var(--white);
+      overflow-x: hidden;
+    }
+    
+    #app { min-height: 100dvh; display: flex; flex-direction: column; }
+    
+    /* ===== HEADER ===== */
+    .header {
+      background: var(--bg-card);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid var(--orange);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--orange), var(--orange-dim));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 2px 8px var(--orange-glow);
+    }
+    .logo-text {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px; font-weight: 900; font-style: italic;
+      letter-spacing: 1px;
+    }
+    .logo-text span { color: var(--orange); }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .header-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--bg-card2); border: 1px solid var(--border);
+      color: var(--muted); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 16px; position: relative;
+    }
+    .header-btn:hover { color: var(--white); border-color: var(--orange); }
+    .header-btn .badge {
+      position: absolute; top: -2px; right: -2px;
+      width: 16px; height: 16px; background: var(--danger);
+      border-radius: 50%; font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--orange);
+      background: linear-gradient(135deg, var(--bg-card2), var(--bg-card3));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; cursor: pointer;
+      overflow: hidden;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    
+    /* ===== SYNC INDICATOR ===== */
+    .sync-indicator {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--muted);
+      padding: 4px 10px; background: var(--bg-card2);
+      border-radius: 20px; border: 1px solid var(--border);
+    }
+    .sync-indicator.synced { color: var(--success); border-color: var(--success); }
+    .sync-indicator.syncing { color: var(--warning); border-color: var(--warning); }
+    .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .sync-indicator.syncing .sync-dot { animation: pulse 1s infinite; }
+    
+    /* ===== MAIN CONTENT ===== */
+    .main { flex: 1; padding: 16px; padding-bottom: 90px; overflow-y: auto; }
+    
+    /* ===== BOTTOM NAV ===== */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-around;
+      padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+      z-index: 100;
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 6px 16px; border-radius: 12px; cursor: pointer;
+      color: var(--muted); background: transparent; border: none;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; transition: all 0.2s;
+    }
+    .nav-item.active { color: var(--orange); }
+    .nav-item .icon { font-size: 22px; }
+    .nav-item.active .icon { transform: scale(1.1); }
+    
+    /* ===== CARDS ===== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-orange {
+      background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dim) 100%);
+      border: none; cursor: pointer;
+      box-shadow: 0 4px 20px var(--orange-glow);
+    }
+    .card-orange:hover { transform: translateY(-2px); transition: transform 0.2s; }
+    .card-orange:active { transform: scale(0.98); }
+    
+    /* ===== CTA NUEVO JUEGO ===== */
+    .cta-new-game { display: flex; align-items: center; gap: 14px; padding: 18px; }
+    .cta-icon {
+      width: 48px; height: 48px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+    }
+    .cta-content { flex: 1; }
+    .cta-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px; font-weight: 800; text-transform: uppercase;
+    }
+    .cta-sub { font-size: 13px; opacity: 0.9; margin-top: 2px; }
+    .cta-arrow { font-size: 28px; opacity: 0.8; }
+    
+    /* ===== SECTION HEADERS ===== */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .section-link {
+      color: var(--orange);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .section-link:hover { text-decoration: underline; }
+    
+    /* ===== MODE TOGGLE ===== */
+    .mode-toggle {
+      display: flex;
+      background: var(--bg-card2);
+      border-radius: var(--radius-sm);
+      padding: 4px;
+      margin-bottom: 16px;
+    }
+    .mode-btn {
+      flex: 1; padding: 10px 16px;
+      border: none; border-radius: 8px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700; text-transform: uppercase;
+      cursor: pointer; background: transparent; color: var(--muted);
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: var(--orange); color: white;
+      box-shadow: 0 2px 8px var(--orange-glow);
+    }
+    
+    /* ===== STATS GRID ===== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--bg-card2);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      border: 1px solid var(--border);
+    }
+    .stat-label {
+      font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .stat-value {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 28px; font-weight: 800; color: var(--orange);
+    }
+    .stat-change { font-size: 12px; margin-top: 2px; }
+    .stat-change.up { color: var(--success); }
+    .stat-change.down { color: var(--danger); }
+    
+    /* ===== GAME CARDS ===== */
+    .games-scroll {
+      display: flex; gap: 12px; overflow-x: auto;
+      padding-bottom: 8px; margin: 0 -16px; padding: 0 16px 8px;
+      scroll-snap-type: x mandatory;
+    }
+    .games-scroll::-webkit-scrollbar { display: none; }
+    .game-card {
+      flex-shrink: 0; width: 170px;
+      background: var(--bg-card2);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      scroll-snap-align: start;
+      transition: all 0.2s;
+    }
+    .game-card:hover { border-color: var(--orange); transform: translateY(-2px); }
+    .game-date { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+    .game-result {
+      display: inline-block;
+      padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      margin-left: 6px;
+    }
+    .game-result.win { background: rgba(46,204,113,0.2); color: var(--success); }
+    .game-result.loss { background: rgba(255,59,92,0.2); color: var(--danger); }
+    .game-teams { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .game-team-icon {
+      width: 32px; height: 32px;
+      background: var(--bg-card3);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .game-score {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 24px; font-weight: 800;
+    }
+    .game-vs { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    
+    /* ===== TEAM MANAGEMENT ===== */
+    .team-list { display: flex; flex-direction: column; gap: 10px; }
+    .team-card {
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .team-card:hover { border-color: var(--orange); }
+    .team-card.selected { border-color: var(--orange); background: rgba(255,107,26,0.1); }
+    .team-logo {
+      width: 50px; height: 50px;
+      background: var(--bg-card3);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+    }
+    .team-info { flex: 1; }
+    .team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px; font-weight: 700;
+    }
+    .team-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .team-badge {
+      padding: 4px 10px;
+      background: var(--bg-card3);
+      border-radius: 6px;
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase;
+    }
+    .team-badge.mini { color: var(--info); }
+    .team-badge.fiba { color: var(--orange); }
+    
+    /* ===== PLAYER LIST ===== */
+    .player-list { display: flex; flex-direction: column; gap: 8px; }
+    .player-item {
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .player-number {
+      width: 36px; height: 36px;
+      background: var(--orange);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px; font-weight: 800;
+    }
+    .player-info { flex: 1; }
+    .player-name { font-weight: 600; font-size: 15px; }
+    .player-position { font-size: 12px; color: var(--muted); }
+    .player-actions { display: flex; gap: 8px; }
+    .player-action-btn {
+      width: 32px; height: 32px;
+      background: var(--bg-card3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--muted); font-size: 14px;
+    }
+    .player-action-btn:hover { color: var(--white); border-color: var(--orange); }
+    .player-action-btn.delete:hover { color: var(--danger); border-color: var(--danger); }
+    
+    /* ===== LIVE GAME ===== */
+    .live-header {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,59,92,0.15);
+      border: 1px solid rgba(255,59,92,0.4);
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 700;
+      color: var(--danger); text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      background: var(--danger);
+      border-radius: 50%;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .live-scoreboard {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .live-team { text-align: center; flex: 1; }
+    .live-team-logo {
+      width: 60px; height: 60px;
+      background: var(--bg-card2);
+      border: 3px solid var(--border);
+      border-radius: 50%;
+      margin: 0 auto 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 16px;
+    }
+    .live-team-logo.home { border-color: var(--success); color: var(--success); }
+    .live-team-logo.away { border-color: var(--orange); color: var(--orange); }
+    .live-team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px; font-weight: 700; text-transform: uppercase;
+    }
+    .live-team-sub { font-size: 11px; color: var(--muted); }
+    .live-center { text-align: center; }
+    .live-score {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 48px; font-weight: 900;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .live-score span { color: var(--muted); font-size: 36px; }
+    .live-timer {
+      background: var(--bg-card2);
+      padding: 8px 20px; border-radius: 10px;
+      margin-top: 12px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 28px; font-weight: 700; color: var(--orange);
+      display: inline-block;
+    }
+    .live-quarter { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    
+    /* ===== PLAYER CARDS ON COURT ===== */
+    .players-section { margin-bottom: 16px; }
+    .players-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .players-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .players-sub-btn {
+      font-size: 12px; color: var(--orange); cursor: pointer;
+      display: flex; align-items: center; gap: 4px;
+      padding: 6px 12px; background: var(--bg-card2);
+      border-radius: 8px; border: 1px solid var(--border);
+    }
+    .players-sub-btn:hover { border-color: var(--orange); }
+    .players-grid {
+      display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px;
+    }
+    .players-grid::-webkit-scrollbar { display: none; }
+    .player-card {
+      flex-shrink: 0; width: 115px;
+      background: var(--bg-card2);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 10px;
+      cursor: pointer; text-align: center;
+      transition: all 0.15s;
+    }
+    .player-card:active { transform: scale(0.95); }
+    .player-card.selected {
+      border-color: var(--orange);
+      background: rgba(255,107,26,0.15);
+      box-shadow: 0 0 15px var(--orange-glow);
+    }
+    .player-card.starter { border-left: 4px solid var(--orange); }
+    .player-badge {
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase;
+      color: var(--orange); margin-bottom: 4px;
+    }
+    .player-card-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .player-stats { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+    .player-stat { text-align: center; }
+    .player-stat-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px; font-weight: 800;
+    }
+    .player-stat-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; }
+    
+    /* ===== ACTION BUTTONS ===== */
+    .actions-section { margin-bottom: 14px; }
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .action-btn {
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .action-btn:hover { border-color: var(--orange); }
+    .action-btn:active { transform: scale(0.92); }
+    .action-btn:disabled { opacity: 0.4; pointer-events: none; }
+    .action-btn.primary {
+      background: linear-gradient(135deg, var(--orange), var(--orange-dim));
+      border-color: var(--orange);
+    }
+    .action-btn.danger {
+      background: rgba(255,59,92,0.15);
+      border-color: var(--danger);
+    }
+    .action-value {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 24px; font-weight: 800;
+      color: var(--orange);
+    }
+    .action-btn.primary .action-value { color: white; }
+    .action-btn.danger .action-value { color: var(--danger); }
+    .action-label {
+      font-size: 10px; font-weight: 600;
+      text-transform: uppercase; margin-top: 4px;
+      color: var(--muted);
+    }
+    .action-btn.primary .action-label { color: rgba(255,255,255,0.9); }
+    .action-btn.danger .action-label { color: var(--danger); }
+    
+    /* ===== CONTROL BUTTONS ===== */
+    .control-buttons { display: flex; gap: 10px; margin-top: 14px; }
+    .ctrl-btn {
+      flex: 1; padding: 14px;
+      border: none; border-radius: var(--radius-sm);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700; text-transform: uppercase;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .ctrl-btn:active { transform: scale(0.95); }
+    .ctrl-btn.secondary {
+      background: var(--bg-card2); color: var(--white);
+      border: 1px solid var(--border);
+    }
+    .ctrl-btn.warning {
+      background: rgba(255,154,60,0.2); color: var(--warning);
+      border: 1px solid var(--warning);
+    }
+    .ctrl-btn.danger { background: var(--danger); color: white; }
+    
+    /* ===== PLAY BY PLAY ===== */
+    .pbp-section {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-top: 16px;
+      border: 1px solid var(--border);
+    }
+    .pbp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .pbp-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700; text-transform: uppercase;
+    }
+    .pbp-live {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--success);
+    }
+    .pbp-list { max-height: 220px; overflow-y: auto; }
+    .pbp-item {
+      display: flex; gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .pbp-item:last-child { border-bottom: none; }
+    .pbp-time {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px; color: var(--muted);
+      width: 45px; flex-shrink: 0;
+    }
+    .pbp-content { flex: 1; }
+    .pbp-action { font-size: 13px; line-height: 1.4; }
+    .pbp-action strong { color: var(--white); }
+    .pbp-action .highlight { color: var(--orange); font-weight: 600; }
+    .pbp-action .success { color: var(--success); }
+    .pbp-action .danger { color: var(--danger); }
+    
+    /* ===== QUARTER SUMMARY ===== */
+    .quarter-summary {
+      background: var(--bg-card2);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      margin-top: 14px;
+      display: flex; justify-content: space-around;
+      text-align: center;
+    }
+    .quarter-stat { }
+    .quarter-stat-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 26px; font-weight: 800;
+    }
+    .quarter-stat-lbl {
+      font-size: 10px; color: var(--muted);
+      text-transform: uppercase;
+    }
+    
+    /* ===== PROFILE SCREEN ===== */
+    .profile-header { text-align: center; padding: 24px 16px; }
+    .profile-avatar {
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      border: 3px solid var(--orange);
+      margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--bg-card2), var(--bg-card3));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px;
+      position: relative;
+      box-shadow: 0 4px 20px var(--orange-glow);
+    }
+    .profile-edit-btn {
+      position: absolute; bottom: 0; right: 0;
+      width: 34px; height: 34px;
+      background: var(--orange);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; cursor: pointer;
+      border: 3px solid var(--bg-dark);
+    }
+    .profile-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 26px; font-weight: 800;
+    }
+    .profile-badge {
+      display: inline-block;
+      background: var(--orange);
+      padding: 4px 14px; border-radius: 20px;
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; margin-top: 6px;
+    }
+    .profile-id { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .profile-stats {
+      display: flex; justify-content: center; gap: 30px; margin-top: 24px;
+    }
+    .profile-stat { text-align: center; }
+    .profile-stat-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 32px; font-weight: 800; color: var(--orange);
+    }
+    .profile-stat-lbl {
+      font-size: 11px; color: var(--muted); text-transform: uppercase;
+    }
+    
+    /* ===== SETTINGS LIST ===== */
+    .settings-section { margin-bottom: 22px; }
+    .settings-title {
+      font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--orange);
+      margin-bottom: 10px; padding: 0 4px;
+    }
+    .settings-list {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .settings-item {
+      display: flex; align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .settings-item:last-child { border-bottom: none; }
+    .settings-item:hover { background: var(--bg-card2); }
+    .settings-icon {
+      width: 38px; height: 38px;
+      background: var(--bg-card2);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-right: 14px; font-size: 18px;
+    }
+    .settings-text { flex: 1; }
+    .settings-label { font-size: 15px; font-weight: 500; }
+    .settings-value { font-size: 13px; color: var(--muted); }
+    .settings-arrow { color: var(--muted); font-size: 18px; }
+    
+    /* ===== TOGGLE SWITCH ===== */
+    .toggle {
+      width: 50px; height: 28px;
+      background: var(--bg-card3);
+      border-radius: 14px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle.on { background: var(--info); }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 24px; height: 24px;
+      background: white;
+      border-radius: 50%;
+      top: 2px; left: 2px;
+      transition: transform 0.2s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .toggle.on::after { transform: translateX(22px); }
+    
+    /* ===== MODALS ===== */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      width: 100%; max-width: 420px;
+      max-height: 90vh; overflow-y: auto;
+      border: 1px solid var(--border);
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .modal-header {
+      padding: 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px; font-weight: 800; text-transform: uppercase;
+    }
+    .modal-close {
+      width: 34px; height: 34px;
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted); cursor: pointer; font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { color: var(--white); border-color: var(--danger); }
+    .modal-body { padding: 18px; }
+    .modal-footer {
+      padding: 18px;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 10px;
+    }
+    
+    /* ===== FORM ELEMENTS ===== */
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block;
+      font-size: 12px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--white);
+      font-family: 'Barlow', sans-serif;
+      font-size: 16px;
+    }
+    .form-input:focus { outline: none; border-color: var(--orange); }
+    .form-input::placeholder { color: var(--muted); }
+    .form-select {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--white);
+      font-family: 'Barlow', sans-serif;
+      font-size: 16px;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237A8599' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    
+    /* ===== BUTTONS ===== */
+    .btn {
+      padding: 14px 24px;
+      border: none; border-radius: var(--radius-sm);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px; font-weight: 700; text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.15s;
+    }
+    .btn:active { transform: scale(0.95); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--orange), var(--orange-dim));
+      color: white;
+      box-shadow: 0 4px 15px var(--orange-glow);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 20px var(--orange-glow); }
+    .btn-secondary {
+      background: var(--bg-card2); color: var(--white);
+      border: 1px solid var(--border);
+    }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-block { width: 100%; }
+    .btn-lg { padding: 18px 32px; font-size: 18px; }
+    .btn:disabled { opacity: 0.5; pointer-events: none; }
+    
+    /* ===== FAB ===== */
+    .fab {
+      position: fixed;
+      bottom: 90px; right: 20px;
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, var(--orange), var(--orange-dim));
+      border-radius: 50%;
+      border: none;
+      box-shadow: 0 4px 20px var(--orange-glow);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; color: white;
+      cursor: pointer; z-index: 90;
+      transition: all 0.2s;
+    }
+    .fab:hover { transform: scale(1.1); }
+    .fab:active { transform: scale(0.95); }
+    
+    /* ===== EMPTY STATE ===== */
+    .empty-state { text-align: center; padding: 60px 24px; }
+    .empty-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.4; }
+    .empty-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px; font-weight: 700; margin-bottom: 8px;
+    }
+    .empty-text { color: var(--muted); font-size: 14px; line-height: 1.5; }
+    
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed;
+      bottom: 100px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 20px;
+      display: flex; align-items: center; gap: 10px;
+      z-index: 300;
+      animation: toastIn 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--danger); }
+    .toast-icon { font-size: 20px; }
+    .toast-message { font-size: 14px; font-weight: 500; }
+    
+    /* ===== RESPONSIVE ===== */
+    @media (min-width: 768px) {
+      .main { max-width: 900px; margin: 0 auto; }
+      .stats-grid { grid-template-columns: repeat(4, 1fr); }
+      .actions-grid { grid-template-columns: repeat(10, 1fr); }
+      .modal { max-width: 500px; }
+    }
+    
+    /* ===== HIDDEN ===== */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { html, render, useState, useEffect, useCallback, useRef } from 'https://esm.sh/htm/preact/standalone';
+
+    // ===== STORAGE =====
+    const STORAGE_KEY = 'statsplus_v3';
+    const loadData = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; } };
+    const saveData = (data) => localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    // ===== UNIQUE ID =====
+    const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+    // ===== DEFAULT STATE =====
+    const defaultState = () => ({
+      mode: 'minibasket',
+      user: { name: 'Entrenador', role: 'Entrenador Pro', id: uid().substr(0,5).toUpperCase() },
+      teams: [],
+      games: [],
+      activeGame: null,
+      settings: { notifications: true, darkMode: true, cloudSync: false }
+    });
+
+    // ===== TOAST COMPONENT =====
+    function Toast({ message, type, onClose }) {
+      useEffect(() => {
+        const timer = setTimeout(onClose, 3000);
+        return () => clearTimeout(timer);
+      }, []);
+      return html`
+        <div class=${'toast ' + type}>
+          <span class="toast-icon">${type === 'success' ? '✓' : '✕'}</span>
+          <span class="toast-message">${message}</span>
+        </div>
+      `;
+    }
+
+    // ===== HEADER =====
+    function Header({ syncStatus }) {
+      return html`
+        <header class="header">
+          <div class="logo">
+            <div class="logo-icon">🏀</div>
+            <div class="logo-text"><span>STATS+</span> MINI</div>
+          </div>
+          <div class="header-actions">
+            ${syncStatus && html`
+              <div class=${'sync-indicator ' + syncStatus}>
+                <span class="sync-dot"></span>
+                ${syncStatus === 'synced' ? 'Sincronizado' : 'Sincronizando...'}
+              </div>
+            `}
+            <button class="header-btn">
+              🔔
+              <span class="badge">2</span>
+            </button>
+            <div class="avatar">👤</div>
+          </div>
+        </header>
+      `;
+    }
+
+    // ===== BOTTOM NAV =====
+    function BottomNav({ active, onNavigate, hasActiveGame }) {
+      const items = [
+        { id: 'panel', icon: '📊', label: 'Panel' },
+        { id: 'teams', icon: '👥', label: 'Equipos' },
+        { id: 'stats', icon: '📈', label: 'Stats' },
+        { id: 'profile', icon: '👤', label: 'Perfil' }
+      ];
+      return html`
+        <nav class="bottom-nav">
+          ${items.map(item => html`
+            <button 
+              key=${item.id}
+              class=${'nav-item' + (active === item.id ? ' active' : '')}
+              onClick=${() => onNavigate(item.id)}
+            >
+              <span class="icon">${item.id === 'panel' && hasActiveGame ? '🔴' : item.icon}</span>
+              <span>${item.label}</span>
+            </button>
+          `)}
+        </nav>
+      `;
+    }
+
+    // ===== PANEL SCREEN =====
+    function PanelScreen({ state, onStartGame, onModeChange, onContinueGame }) {
+      const stats = { ppg: 24.8, winRate: 68, rpg: 8.2, apg: 5.5 };
+      const recentGames = state.games.slice(-5).reverse();
+
+      return html`
+        <div class="main">
+          <div class="mode-toggle">
+            <button class=${'mode-btn' + (state.mode === 'minibasket' ? ' active' : '')}
+              onClick=${() => onModeChange('minibasket')}>Mini-Basket</button>
+            <button class=${'mode-btn' + (state.mode === 'fiba' ? ' active' : '')}
+              onClick=${() => onModeChange('fiba')}>Reglas FIBA</button>
+          </div>
+          
+          ${state.activeGame ? html`
+            <div class="card card-orange cta-new-game" onClick=${onContinueGame}>
+              <div class="cta-icon">🔴</div>
+              <div class="cta-content">
+                <div class="cta-title">Partido en Curso</div>
+                <div class="cta-sub">${state.activeGame.homeTeam} vs ${state.activeGame.awayTeam}</div>
+              </div>
+              <div class="cta-arrow">→</div>
+            </div>
+          ` : html`
+            <div class="card card-orange cta-new-game" onClick=${onStartGame}>
+              <div class="cta-icon">🏀</div>
+              <div class="cta-content">
+                <div class="cta-title">Nuevo Juego</div>
+                <div class="cta-sub">Comienza a trackear una sesión en vivo</div>
+              </div>
+              <div class="cta-arrow">→</div>
+            </div>
+          `}
+          
+          <div class="section-header">
+            <div class="section-title">Estadísticas Rápidas</div>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Promedio PPP</div>
+              <div class="stat-value">${stats.ppg}</div>
+              <div class="stat-change up">↑ 12%</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">% Victorias</div>
+              <div class="stat-value">${stats.winRate}%</div>
+              <div class="stat-change up">↑ 4%</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Rebotes</div>
+              <div class="stat-value">${stats.rpg}</div>
+              <div class="stat-change up">↑ 2%</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Asistencias</div>
+              <div class="stat-value">${stats.apg}</div>
+              <div class="stat-change">— 0%</div>
+            </div>
+          </div>
+          
+          <div class="section-header">
+            <div class="section-title">Partidos Recientes</div>
+            <div class="section-link">Ver Todo</div>
+          </div>
+          ${recentGames.length === 0 ? html`
+            <div class="card" style="text-align: center; padding: 30px;">
+              <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+              <div style="color: var(--muted);">Sin partidos recientes</div>
+            </div>
+          ` : html`
+            <div class="games-scroll">
+              ${recentGames.map(g => html`
+                <div key=${g.id} class="game-card">
+                  <div class="game-date">
+                    ${g.date} · FINAL
+                    <span class=${'game-result ' + (g.homeScore > g.awayScore ? 'win' : 'loss')}>
+                      ${g.homeScore > g.awayScore ? 'Victoria' : 'Derrota'}
+                    </span>
+                  </div>
+                  <div class="game-teams">
+                    <div class="game-team-icon">⚡</div>
+                    <div>
+                      <div class="game-score">${g.homeScore} - ${g.awayScore}</div>
+                      <div class="game-vs">${g.homeTeam} vs ${g.awayTeam}</div>
+                    </div>
+                  </div>
+                </div>
+              `)}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    // ===== TEAMS SCREEN =====
+    function TeamsScreen({ teams, mode, onAddTeam, onSelectTeam, onDeleteTeam }) {
+      const filteredTeams = teams.filter(t => t.mode === mode);
+      
+      return html`
+        <div class="main">
+          <div class="section-header">
+            <div class="section-title">Mis Equipos (${mode === 'minibasket' ? 'Mini' : 'FIBA'})</div>
+          </div>
+          
+          ${filteredTeams.length === 0 ? html`
+            <div class="empty-state">
+              <div class="empty-icon">👥</div>
+              <div class="empty-title">Sin Equipos</div>
+              <div class="empty-text">Crea tu primer equipo para empezar a registrar estadísticas</div>
+              <button class="btn btn-primary btn-lg" style="margin-top: 20px;" onClick=${onAddTeam}>
+                + Crear Equipo
+              </button>
+            </div>
+          ` : html`
+            <div class="team-list">
+              ${filteredTeams.map(team => html`
+                <div key=${team.id} class="team-card" onClick=${() => onSelectTeam(team)}>
+                  <div class="team-logo">${team.emoji || '🏀'}</div>
+                  <div class="team-info">
+                    <div class="team-name">${team.name}</div>
+                    <div class="team-meta">${team.players?.length || 0} jugadores</div>
+                  </div>
+                  <div class=${'team-badge ' + (team.mode === 'minibasket' ? 'mini' : 'fiba')}>
+                    ${team.mode === 'minibasket' ? 'Mini' : 'FIBA'}
+                  </div>
+                </div>
+              `)}
+            </div>
+          `}
+        </div>
+        <button class="fab" onClick=${onAddTeam}>+</button>
+      `;
+    }
+
+    // ===== TEAM DETAIL SCREEN =====
+    function TeamDetailScreen({ team, onBack, onUpdateTeam, onAddPlayer, onDeletePlayer }) {
+      const [editingPlayer, setEditingPlayer] = useState(null);
+      
+      return html`
+        <div class="main">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+            <button class="btn btn-secondary" onClick=${onBack}>← Volver</button>
+            <div style="flex: 1;">
+              <div class="team-name" style="font-size: 22px;">${team.name}</div>
+              <div style="color: var(--muted); font-size: 13px;">
+                ${team.mode === 'minibasket' ? 'Mini-Basket' : 'FIBA'} · ${team.players?.length || 0} jugadores
+              </div>
+            </div>
+          </div>
+          
+          <div class="section-header">
+            <div class="section-title">Plantilla</div>
+            <div class="section-link" onClick=${onAddPlayer}>+ Añadir</div>
+          </div>
+          
+          ${!team.players || team.players.length === 0 ? html`
+            <div class="card" style="text-align: center; padding: 40px;">
+              <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
+              <div style="color: var(--muted);">Sin jugadores</div>
+              <button class="btn btn-primary" style="margin-top: 16px;" onClick=${onAddPlayer}>
+                + Añadir Jugador
+              </button>
+            </div>
+          ` : html`
+            <div class="player-list">
+              ${team.players.map(p => html`
+                <div key=${p.id} class="player-item">
+                  <div class="player-number">${p.number}</div>
+                  <div class="player-info">
+                    <div class="player-name">${p.name}</div>
+                    <div class="player-position">${p.position || 'Sin posición'}</div>
+                  </div>
+                  <div class="player-actions">
+                    <button class="player-action-btn" onClick=${() => setEditingPlayer(p)}>✏️</button>
+                    <button class="player-action-btn delete" onClick=${() => onDeletePlayer(p.id)}>🗑️</button>
+                  </div>
+                </div>
+              `)}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    // ===== LIVE GAME SCREEN =====
+    function LiveGameScreen({ game, mode, onUpdateGame, onEndGame }) {
+      const [selectedPlayer, setSelectedPlayer] = useState(null);
+      const [timer, setTimer] = useState(game.timer || 600);
+      const [isRunning, setIsRunning] = useState(false);
+      const [quarter, setQuarter] = useState(game.quarter || 1);
+      const timerRef = useRef(null);
+
+      const maxQuarters = mode === 'minibasket' ? 4 : 4;
+      const quarterTime = mode === 'minibasket' ? 600 : 600;
+
+      useEffect(() => {
+        if (isRunning && timer > 0) {
+          timerRef.current = setInterval(() => {
+            setTimer(t => {
+              if (t <= 1) {
+                setIsRunning(false);
+                return 0;
+              }
+              return t - 1;
+            });
+          }, 1000);
+        }
+        return () => clearInterval(timerRef.current);
+      }, [isRunning]);
+
+      const formatTime = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+
+      const handleAction = (type, value) => {
+        if (!selectedPlayer) return;
+        
+        const player = game.players.find(p => p.id === selectedPlayer);
+        if (!player) return;
+
+        const updatedPlayers = game.players.map(p => {
+          if (p.id !== selectedPlayer) return p;
+          const stats = { ...p.stats };
+          
+          switch(type) {
+            case 'pts': stats.pts = (stats.pts || 0) + value; break;
+            case 'reb': stats.reb = (stats.reb || 0) + 1; break;
+            case 'ast': stats.ast = (stats.ast || 0) + 1; break;
+            case 'stl': stats.stl = (stats.stl || 0) + 1; break;
+            case 'blk': stats.blk = (stats.blk || 0) + 1; break;
+            case 'foul': stats.foul = (stats.foul || 0) + 1; break;
+            case 'to': stats.to = (stats.to || 0) + 1; break;
+          }
+          return { ...p, stats };
+        });
+
+        const newPlay = {
+          time: formatTime(timer),
+          player: player.name,
+          action: type,
+          value,
+          quarter
+        };
+
+        const homeScore = type === 'pts' ? game.homeScore + value : game.homeScore;
+
+        onUpdateGame({
+          ...game,
+          players: updatedPlayers,
+          plays: [newPlay, ...(game.plays || [])],
+          homeScore,
+          timer,
+          quarter
+        });
+      };
+
+      const nextQuarter = () => {
+        if (quarter < maxQuarters) {
+          setQuarter(q => q + 1);
+          setTimer(quarterTime);
+          setIsRunning(false);
+        }
+      };
+
+      const players = game.players || [];
+      const plays = game.plays || [];
+
+      return html`
+        <div class="main">
+          <div class="live-header">
+            <div class="live-badge">
+              <div class="live-dot"></div>
+              C${quarter} · EN VIVO
+            </div>
+            <div class="live-scoreboard">
+              <div class="live-team">
+                <div class="live-team-logo home">${game.homeTeam?.substring(0,3).toUpperCase() || 'LOC'}</div>
+                <div class="live-team-name">${game.homeTeam}</div>
+                <div class="live-team-sub">Local</div>
+              </div>
+              <div class="live-center">
+                <div class="live-score">
+                  <span style="color: var(--white)">${game.homeScore}</span>
+                  <span>-</span>
+                  <span style="color: var(--white)">${game.awayScore}</span>
+                </div>
+                <div class="live-timer" onClick=${() => setIsRunning(!isRunning)} style="cursor: pointer;">
+                  ${formatTime(timer)} ${isRunning ? '⏸' : '▶'}
+                </div>
+                <div class="live-quarter">Cuarto ${quarter} de ${maxQuarters}</div>
+              </div>
+              <div class="live-team">
+                <div class="live-team-logo away">${game.awayTeam?.substring(0,3).toUpperCase() || 'VIS'}</div>
+                <div class="live-team-name">${game.awayTeam}</div>
+                <div class="live-team-sub">Visitante</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="players-section">
+            <div class="players-header">
+              <div class="players-title">Jugadores · ${game.homeTeam}</div>
+              <div class="players-sub-btn">🔄 Cambio</div>
+            </div>
+            <div class="players-grid">
+              ${players.length === 0 ? html`
+                <div style="color: var(--muted); padding: 20px; text-align: center; width: 100%;">
+                  Sin jugadores. Selecciona un equipo con plantilla.
+                </div>
+              ` : players.map(p => html`
+                <div 
+                  key=${p.id}
+                  class=${'player-card' + (selectedPlayer === p.id ? ' selected' : '')}
+                  onClick=${() => setSelectedPlayer(selectedPlayer === p.id ? null : p.id)}
+                >
+                  <div class="player-badge">#${p.number}</div>
+                  <div class="player-card-name">${p.name}</div>
+                  <div class="player-stats">
+                    <div class="player-stat">
+                      <div class="player-stat-val">${p.stats?.pts || 0}</div>
+                      <div class="player-stat-lbl">PTS</div>
+                    </div>
+                    <div class="player-stat">
+                      <div class="player-stat-val">${p.stats?.reb || 0}</div>
+                      <div class="player-stat-lbl">REB</div>
+                    </div>
+                    <div class="player-stat">
+                      <div class="player-stat-val">${p.stats?.foul || 0}</div>
+                      <div class="player-stat-lbl">FAL</div>
+                    </div>
+                  </div>
+                </div>
+              `)}
+            </div>
+          </div>
+          
+          <div class="actions-section">
+            <div class="actions-grid">
+              <button class="action-btn primary" onClick=${() => handleAction('pts', 2)} disabled=${!selectedPlayer}>
+                <div class="action-value">+2</div>
+                <div class="action-label">Campo</div>
+              </button>
+              <button class="action-btn primary" onClick=${() => handleAction('pts', 3)} disabled=${!selectedPlayer}>
+                <div class="action-value">+3</div>
+                <div class="action-label">Triple</div>
+              </button>
+              <button class="action-btn primary" onClick=${() => handleAction('pts', 1)} disabled=${!selectedPlayer}>
+                <div class="action-value">+1</div>
+                <div class="action-label">Libre</div>
+              </button>
+              <button class="action-btn" onClick=${() => handleAction('reb', 1)} disabled=${!selectedPlayer}>
+                <div class="action-value">↑</div>
+                <div class="action-label">Reb Of</div>
+              </button>
+              <button class="action-btn" onClick=${() => handleAction('reb', 1)} disabled=${!selectedPlayer}>
+                <div class="action-value">↓</div>
+                <div class="action-label">Reb Def</div>
+              </button>
+            </div>
+            <div class="actions-grid" style="margin-top: 8px;">
+              <button class="action-btn" onClick=${() => handleAction('ast', 1)} disabled=${!selectedPlayer}>
+                <div class="action-value">AST</div>
+                <div class="action-label">Asist</div>
+              </button>
+              <button class="action-btn" onClick=${() => handleAction('stl', 1)} disabled=${!selectedPlayer}>
+                <div class="action-value">STL</div>
+                <div class="action-label">Robo</div>
+              </button>
+              <button class="action-btn" onClick=${() => handleAction('blk', 1)} disabled=${!selectedPlayer}>
+                <div class="action-value">BLK</div>
+                <div class="action-label">Tapón</div>
+              </button>
+              <button class="action-btn danger" onClick=${() => handleAction('foul', 1)} disabled=${!selectedPlayer}>
+                <div class="action-value">PF</div>
+                <div class="action-label">Falta</div>
+              </button>
+              <button class="action-btn" onClick=${() => handleAction('to', 1)} disabled=${!selectedPlayer}>
+                <div class="action-value">TO</div>
+                <div class="action-label">Pérdida</div>
+              </button>
+            </div>
+          </div>
+          
+          <div class="control-buttons">
+            <button class="ctrl-btn secondary" onClick=${() => setIsRunning(!isRunning)}>
+              ${isRunning ? '⏸ Pausa' : '▶ Iniciar'}
+            </button>
+            <button class="ctrl-btn warning" onClick=${nextQuarter} disabled=${quarter >= maxQuarters}>
+              Fin Cuarto
+            </button>
+            <button class="ctrl-btn danger" onClick=${onEndGame}>
+              Finalizar
+            </button>
+          </div>
+          
+          <div class="pbp-section">
+            <div class="pbp-header">
+              <div class="pbp-title">Crónica en Vivo</div>
+              <div class="pbp-live">● En directo</div>
+            </div>
+            <div class="pbp-list">
+              ${plays.length === 0 ? html`
+                <div style="text-align: center; color: var(--muted); padding: 20px;">
+                  Las jugadas aparecerán aquí
+                </div>
+              ` : plays.slice(0, 10).map((play, i) => html`
+                <div key=${i} class="pbp-item">
+                  <div class="pbp-time">${play.time}</div>
+                  <div class="pbp-content">
+                    <div class="pbp-action">
+                      <strong>${play.player}</strong>
+                      ${' '}
+                      <span class=${play.action === 'foul' ? 'danger' : play.action === 'pts' ? 'success' : 'highlight'}>
+                        ${play.action === 'pts' ? `+${play.value} puntos` :
+                          play.action === 'reb' ? 'Rebote' :
+                          play.action === 'ast' ? 'Asistencia' :
+                          play.action === 'stl' ? 'Robo' :
+                          play.action === 'blk' ? 'Tapón' :
+                          play.action === 'foul' ? 'Falta Personal' :
+                          play.action === 'to' ? 'Pérdida' : play.action}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              `)}
+            </div>
+          </div>
+          
+          <div class="quarter-summary">
+            <div class="quarter-stat">
+              <div class="quarter-stat-val">${players.reduce((a,p) => a + (p.stats?.pts || 0), 0)}</div>
+              <div class="quarter-stat-lbl">Puntos</div>
+            </div>
+            <div class="quarter-stat">
+              <div class="quarter-stat-val">${players.reduce((a,p) => a + (p.stats?.reb || 0), 0)}</div>
+              <div class="quarter-stat-lbl">Rebotes</div>
+            </div>
+            <div class="quarter-stat">
+              <div class="quarter-stat-val">${players.reduce((a,p) => a + (p.stats?.ast || 0), 0)}</div>
+              <div class="quarter-stat-lbl">Asist</div>
+            </div>
+            <div class="quarter-stat">
+              <div class="quarter-stat-val">${players.reduce((a,p) => a + (p.stats?.foul || 0), 0)}</div>
+              <div class="quarter-stat-lbl">Faltas</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ===== STATS SCREEN =====
+    function StatsScreen({ teams, games }) {
+      const totalGames = games.length;
+      const wins = games.filter(g => g.homeScore > g.awayScore).length;
+      const totalPoints = games.reduce((a, g) => a + g.homeScore, 0);
+      
+      return html`
+        <div class="main">
+          <div class="section-header">
+            <div class="section-title">Estadísticas Globales</div>
+          </div>
+          
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Partidos Jugados</div>
+              <div class="stat-value">${totalGames}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Victorias</div>
+              <div class="stat-value" style="color: var(--success)">${wins}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">% Victorias</div>
+              <div class="stat-value">${totalGames > 0 ? Math.round(wins/totalGames*100) : 0}%</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Puntos Totales</div>
+              <div class="stat-value">${totalPoints}</div>
+            </div>
+          </div>
+          
+          <div class="section-header" style="margin-top: 20px;">
+            <div class="section-title">Historial Completo</div>
+          </div>
+          
+          ${games.length === 0 ? html`
+            <div class="empty-state">
+              <div class="empty-icon">📈</div>
+              <div class="empty-title">Sin Datos</div>
+              <div class="empty-text">Completa partidos para ver estadísticas detalladas</div>
+            </div>
+          ` : games.slice().reverse().map(g => html`
+            <div key=${g.id} class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-size: 12px; color: var(--muted);">${g.date}</div>
+                  <div style="font-weight: 600; margin-top: 4px;">${g.homeTeam} vs ${g.awayTeam}</div>
+                </div>
+                <div style="text-align: right;">
+                  <div style="font-family: 'Barlow Condensed'; font-size: 24px; font-weight: 800; color: var(--orange);">
+                    ${g.homeScore} - ${g.awayScore}
+                  </div>
+                  <div style="font-size: 11px; color: ${g.homeScore > g.awayScore ? 'var(--success)' : 'var(--danger)'};">
+                    ${g.homeScore > g.awayScore ? 'Victoria' : 'Derrota'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `)}
+        </div>
+      `;
+    }
+
+    // ===== PROFILE SCREEN =====
+    function ProfileScreen({ user, settings, games, teams, onToggleSetting }) {
+      return html`
+        <div class="main">
+          <div class="profile-header">
+            <div class="profile-avatar">
+              👤
+              <div class="profile-edit-btn">✏️</div>
+            </div>
+            <div class="profile-name">${user.name}</div>
+            <div class="profile-badge">${user.role}</div>
+            <div class="profile-id">· ID: ${user.id}</div>
+            <div class="profile-stats">
+              <div class="profile-stat">
+                <div class="profile-stat-val">${games.length}</div>
+                <div class="profile-stat-lbl">Partidos</div>
+              </div>
+              <div class="profile-stat">
+                <div class="profile-stat-val">${teams.length}</div>
+                <div class="profile-stat-lbl">Equipos</div>
+              </div>
+              <div class="profile-stat">
+                <div class="profile-stat-val">01</div>
+                <div class="profile-stat-lbl">Años</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="settings-section">
+            <div class="settings-title">Configuración de la App</div>
+            <div class="settings-list">
+              <div class="settings-item">
+                <div class="settings-icon">🔔</div>
+                <div class="settings-text">
+                  <div class="settings-label">Notificaciones</div>
+                </div>
+                <div class=${'toggle' + (settings.notifications ? ' on' : '')} 
+                     onClick=${() => onToggleSetting('notifications')}></div>
+              </div>
+              <div class="settings-item">
+                <div class="settings-icon">🌙</div>
+                <div class="settings-text">
+                  <div class="settings-label">Modo Oscuro</div>
+                </div>
+                <div class=${'toggle' + (settings.darkMode ? ' on' : '')}
+                     onClick=${() => onToggleSetting('darkMode')}></div>
+              </div>
+              <div class="settings-item">
+                <div class="settings-icon">☁️</div>
+                <div class="settings-text">
+                  <div class="settings-label">Sincronización en la Nube</div>
+                  <div class="settings-value">Próximamente</div>
+                </div>
+                <div class=${'toggle' + (settings.cloudSync ? ' on' : '')}
+                     onClick=${() => onToggleSetting('cloudSync')}></div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="settings-section">
+            <div class="settings-title">Ayuda</div>
+            <div class="settings-list">
+              <div class="settings-item">
+                <div class="settings-text">
+                  <div class="settings-label">Centro de Ayuda</div>
+                </div>
+                <div class="settings-arrow">↗</div>
+              </div>
+              <div class="settings-item">
+                <div class="settings-text">
+                  <div class="settings-label" style="color: var(--danger);">Cerrar Sesión</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="text-align: center; padding: 20px; color: var(--muted); font-size: 12px;">
+            STATS+ MINI v3.0.0
+          </div>
+        </div>
+      `;
+    }
+
+    // ===== MODALS =====
+    function NewTeamModal({ mode, onClose, onSave }) {
+      const [name, setName] = useState('');
+      const [emoji, setEmoji] = useState('🏀');
+      const emojis = ['🏀', '⚡', '🔥', '🦁', '🐺', '🦅', '🐻', '🦈', '🌟', '💪'];
+      
+      return html`
+        <div class="modal-overlay" onClick=${e => e.target === e.currentTarget && onClose()}>
+          <div class="modal">
+            <div class="modal-header">
+              <div class="modal-title">Nuevo Equipo</div>
+              <button class="modal-close" onClick=${onClose}>×</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-group">
+                <label class="form-label">Nombre del Equipo</label>
+                <input type="text" class="form-input" placeholder="Ej: Los Leones"
+                  value=${name} onInput=${e => setName(e.target.value)} />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Icono</label>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  ${emojis.map(e => html`
+                    <button key=${e} type="button"
+                      style=${{
+                        width: '44px', height: '44px', fontSize: '22px',
+                        background: emoji === e ? 'var(--orange)' : 'var(--bg-card2)',
+                        border: '1px solid ' + (emoji === e ? 'var(--orange)' : 'var(--border)'),
+                        borderRadius: '10px', cursor: 'pointer'
+                      }}
+                      onClick=${() => setEmoji(e)}>${e}</button>
+                  `)}
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Categoría</label>
+                <div class="form-input" style="background: var(--bg-card3);">
+                  ${mode === 'minibasket' ? '🏀 Mini-Basket' : '🏆 FIBA Senior'}
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" style="flex: 1;" onClick=${onClose}>Cancelar</button>
+              <button class="btn btn-primary" style="flex: 2;" disabled=${!name.trim()}
+                onClick=${() => onSave({ name: name.trim(), emoji, mode })}>
+                Crear Equipo
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function NewPlayerModal({ onClose, onSave }) {
+      const [name, setName] = useState('');
+      const [number, setNumber] = useState('');
+      const [position, setPosition] = useState('');
+      
+      return html`
+        <div class="modal-overlay" onClick=${e => e.target === e.currentTarget && onClose()}>
+          <div class="modal">
+            <div class="modal-header">
+              <div class="modal-title">Nuevo Jugador</div>
+              <button class="modal-close" onClick=${onClose}>×</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-group">
+                <label class="form-label">Nombre</label>
+                <input type="text" class="form-input" placeholder="Nombre del jugador"
+                  value=${name} onInput=${e => setName(e.target.value)} />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Dorsal</label>
+                  <input type="number" class="form-input" placeholder="00" min="0" max="99"
+                    value=${number} onInput=${e => setNumber(e.target.value)} />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Posición</label>
+                  <select class="form-select" value=${position} onChange=${e => setPosition(e.target.value)}>
+                    <option value="">Seleccionar...</option>
+                    <option value="Base">Base (1)</option>
+                    <option value="Escolta">Escolta (2)</option>
+                    <option value="Alero">Alero (3)</option>
+                    <option value="Ala-Pívot">Ala-Pívot (4)</option>
+                    <option value="Pívot">Pívot (5)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" style="flex: 1;" onClick=${onClose}>Cancelar</button>
+              <button class="btn btn-primary" style="flex: 2;" disabled=${!name.trim() || !number}
+                onClick=${() => onSave({ name: name.trim(), number: parseInt(number), position })}>
+                Añadir Jugador
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function NewGameModal({ mode, teams, onClose, onStart }) {
+      const [homeTeam, setHomeTeam] = useState('');
+      const [awayTeam, setAwayTeam] = useState('');
+      const [selectedTeamId, setSelectedTeamId] = useState('');
+      
+      const filteredTeams = teams.filter(t => t.mode === mode);
+      const selectedTeam = filteredTeams.find(t => t.id === selectedTeamId);
+      
+      return html`
+        <div class="modal-overlay" onClick=${e => e.target === e.currentTarget && onClose()}>
+          <div class="modal">
+            <div class="modal-header">
+              <div class="modal-title">Nuevo Partido</div>
+              <button class="modal-close" onClick=${onClose}>×</button>
+            </div>
+            <div class="modal-body">
+              <div style="text-align: center; margin-bottom: 16px;">
+                <div class="mode-toggle" style="display: inline-flex;">
+                  <button class="mode-btn active">${mode === 'minibasket' ? 'Mini-Basket' : 'FIBA'}</button>
+                </div>
+              </div>
+              
+              ${filteredTeams.length > 0 ? html`
+                <div class="form-group">
+                  <label class="form-label">Seleccionar Mi Equipo</label>
+                  <select class="form-select" value=${selectedTeamId} 
+                    onChange=${e => {
+                      setSelectedTeamId(e.target.value);
+                      const team = filteredTeams.find(t => t.id === e.target.value);
+                      if (team) setHomeTeam(team.name);
+                    }}>
+                    <option value="">-- Sin equipo guardado --</option>
+                    ${filteredTeams.map(t => html`
+                      <option key=${t.id} value=${t.id}>${t.emoji} ${t.name} (${t.players?.length || 0} jug.)</option>
+                    `)}
+                  </select>
+                </div>
+              ` : html`
+                <div class="form-group">
+                  <label class="form-label">Equipo Local</label>
+                  <input type="text" class="form-input" placeholder="Nombre del equipo"
+                    value=${homeTeam} onInput=${e => setHomeTeam(e.target.value)} />
+                </div>
+              `}
+              
+              <div class="form-group">
+                <label class="form-label">Equipo Rival</label>
+                <input type="text" class="form-input" placeholder="Nombre del equipo rival"
+                  value=${awayTeam} onInput=${e => setAwayTeam(e.target.value)} />
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" style="flex: 1;" onClick=${onClose}>Cancelar</button>
+              <button class="btn btn-primary" style="flex: 2;" 
+                disabled=${!homeTeam || !awayTeam}
+                onClick=${() => onStart({ 
+                  homeTeam, 
+                  awayTeam, 
+                  players: selectedTeam?.players?.map(p => ({ ...p, stats: {} })) || []
+                })}>
+                🏀 Comenzar
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ===== MAIN APP =====
+    function App() {
+      const [state, setState] = useState(() => loadData() || defaultState());
+      const [screen, setScreen] = useState('panel');
+      const [selectedTeam, setSelectedTeam] = useState(null);
+      const [showNewTeamModal, setShowNewTeamModal] = useState(false);
+      const [showNewPlayerModal, setShowNewPlayerModal] = useState(false);
+      const [showNewGameModal, setShowNewGameModal] = useState(false);
+      const [toast, setToast] = useState(null);
+      
+      useEffect(() => { saveData(state); }, [state]);
+
+      const showToast = (message, type = 'success') => setToast({ message, type });
+
+      // Team management
+      const addTeam = (team) => {
+        const newTeam = { ...team, id: uid(), players: [] };
+        setState(s => ({ ...s, teams: [...s.teams, newTeam] }));
+        setShowNewTeamModal(false);
+        showToast('Equipo creado');
+      };
+
+      const addPlayer = (player) => {
+        const newPlayer = { ...player, id: uid() };
+        setState(s => ({
+          ...s,
+          teams: s.teams.map(t => 
+            t.id === selectedTeam.id 
+              ? { ...t, players: [...(t.players || []), newPlayer] }
+              : t
+          )
+        }));
+        setSelectedTeam(t => ({ ...t, players: [...(t.players || []), newPlayer] }));
+        setShowNewPlayerModal(false);
+        showToast('Jugador añadido');
+      };
+
+      const deletePlayer = (playerId) => {
+        setState(s => ({
+          ...s,
+          teams: s.teams.map(t => 
+            t.id === selectedTeam.id 
+              ? { ...t, players: t.players.filter(p => p.id !== playerId) }
+              : t
+          )
+        }));
+        setSelectedTeam(t => ({ ...t, players: t.players.filter(p => p.id !== playerId) }));
+        showToast('Jugador eliminado');
+      };
+
+      // Game management
+      const startGame = (gameData) => {
+        const newGame = {
+          id: uid(),
+          homeTeam: gameData.homeTeam,
+          awayTeam: gameData.awayTeam,
+          homeScore: 0,
+          awayScore: 0,
+          quarter: 1,
+          timer: 600,
+          players: gameData.players || [],
+          plays: [],
+          startedAt: new Date().toISOString()
+        };
+        setState(s => ({ ...s, activeGame: newGame }));
+        setShowNewGameModal(false);
+        setScreen('live');
+      };
+
+      const updateGame = (game) => {
+        setState(s => ({ ...s, activeGame: game }));
+      };
+
+      const endGame = () => {
+        if (!state.activeGame) return;
+        const finalGame = {
+          ...state.activeGame,
+          date: new Date().toLocaleDateString('es-ES'),
+          endedAt: new Date().toISOString()
+        };
+        setState(s => ({
+          ...s,
+          games: [...s.games, finalGame],
+          activeGame: null
+        }));
+        setScreen('stats');
+        showToast('Partido guardado');
+      };
+
+      // Render screens
+      const renderScreen = () => {
+        if (screen === 'live' && state.activeGame) {
+          return html`<${LiveGameScreen} 
+            game=${state.activeGame} 
+            mode=${state.mode}
+            onUpdateGame=${updateGame}
+            onEndGame=${endGame}
+          />`;
+        }
+        
+        if (screen === 'teams' && selectedTeam) {
+          return html`<${TeamDetailScreen}
+            team=${selectedTeam}
+            onBack=${() => setSelectedTeam(null)}
+            onAddPlayer=${() => setShowNewPlayerModal(true)}
+            onDeletePlayer=${deletePlayer}
+          />`;
+        }
+
+        switch (screen) {
+          case 'panel':
+            return html`<${PanelScreen}
+              state=${state}
+              onStartGame=${() => setShowNewGameModal(true)}
+              onModeChange=${mode => setState(s => ({ ...s, mode }))}
+              onContinueGame=${() => setScreen('live')}
+            />`;
+          case 'teams':
+            return html`<${TeamsScreen}
+              teams=${state.teams}
+              mode=${state.mode}
+              onAddTeam=${() => setShowNewTeamModal(true)}
+              onSelectTeam=${setSelectedTeam}
+            />`;
+          case 'stats':
+            return html`<${StatsScreen} teams=${state.teams} games=${state.games} />`;
+          case 'profile':
+            return html`<${ProfileScreen}
+              user=${state.user}
+              settings=${state.settings}
+              games=${state.games}
+              teams=${state.teams}
+              onToggleSetting=${key => setState(s => ({ ...s, settings: { ...s.settings, [key]: !s.settings[key] } }))}
+            />`;
+          default:
+            return null;
+        }
+      };
+
+      return html`
+        <${Header} />
+        ${renderScreen()}
+        <${BottomNav} 
+          active=${screen === 'live' ? 'panel' : screen} 
+          onNavigate=${setScreen}
+          hasActiveGame=${!!state.activeGame}
+        />
+        
+        ${showNewTeamModal && html`
+          <${NewTeamModal} mode=${state.mode} onClose=${() => setShowNewTeamModal(false)} onSave=${addTeam} />
+        `}
+        ${showNewPlayerModal && html`
+          <${NewPlayerModal} onClose=${() => setShowNewPlayerModal(false)} onSave=${addPlayer} />
+        `}
+        ${showNewGameModal && html`
+          <${NewGameModal} 
+            mode=${state.mode} 
+            teams=${state.teams}
+            onClose=${() => setShowNewGameModal(false)} 
+            onStart=${startGame}
+          />
+        `}
+        ${toast && html`<${Toast} ...${toast} onClose=${() => setToast(null)} />`}
+      `;
+    }
+
+    render(html`<${App} />`, document.getElementById('app'));
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  </script>
+</body>
+</html>
