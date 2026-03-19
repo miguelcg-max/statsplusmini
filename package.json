@@ -1,0 +1,12 @@
+{
+  "name": "statsplusmini",
+  "version": "1.0.0",
+  "description": "Mini5 Stats - App de estadísticas de minibasket",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
