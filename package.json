@@ -1,12 +1,8 @@
 {
   "name": "statsplus-mini",
-  "version": "2.4.1",
-  "description": "Stats+ Mini - App profesional de estadísticas de baloncesto",
+  "version": "5.0.0",
+  "description": "Stats+ Mini v5 - Baloncesto con análise avanzado",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2"
-  }
+  "scripts": { "start": "node index.js" },
+  "dependencies": { "express": "^4.18.2" }
 }

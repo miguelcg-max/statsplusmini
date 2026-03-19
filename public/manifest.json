@@ -1,24 +1,14 @@
 {
   "name": "Stats+ Mini",
   "short_name": "Stats+",
-  "description": "App profesional de estadísticas de baloncesto - Mini-Basket y FIBA",
+  "description": "Estatísticas de baloncesto Mini-Basket Galego e FIBA",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0A0E1A",
   "theme_color": "#FF6B1A",
   "orientation": "portrait",
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }

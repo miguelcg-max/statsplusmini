@@ -1,14 +1,7 @@
 FROM node:20-slim
-
 WORKDIR /app
-
-COPY package.json ./
-RUN npm install --omit=dev
-
-COPY index.js ./
-COPY public ./public
-
-ENV PORT=8080
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
 EXPOSE 8080
-
-CMD ["node", "index.js"]
+CMD ["npm", "start"]
