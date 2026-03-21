@@ -1,6 +1,6 @@
 {
   "name": "statsplus-mini",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Stats+ Mini v5 - Baloncesto con análise avanzado",
   "main": "index.js",
   "scripts": { "start": "node index.js" },
